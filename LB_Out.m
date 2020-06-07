@@ -1,0 +1,59 @@
+%子函数：水印提取
+%输入变量：X为原始图像，X_out为水印嵌入图像，a,b分别为低通高通小波系数的嵌入强度
+%r1,r2,r3,r4为嵌入位置的随机序列
+%输出变量I_out为提取的水印图像
+function I_out=LB_Out(X,X_out,a,b,r1,r2,r3,r4)
+%对载体图像X进行一级小波分解
+[CA1,CH1,CV1,CD1]=dwt2(X,'haar');
+%对载体图像X进行二级小波分解
+[CA2,CH2,CV2,CD2]=dwt2(CA1,'haar');
+%对载体图像X进行三级小波分解
+[CA3,CH3,CV3,CD3]=dwt2(CA2,'haar');
+%对含水印图像X_out进行一级小波分解
+[CCA1,CCH1,CCV1,CCD1]=dwt2(X_out,'haar');
+%对含水印图像X_out进行二级小波分解
+[CCA2,CCH2,CCV2,CCD2]=dwt2(CCA1,'haar');
+%对含水印图像X_out进行一级小波分解
+[CCA3,CCH3,CCV3,CCD3]=dwt2(CCA2,'haar');
+
+%获得三级分解信号的尺寸p,q
+[p,q]=size(CCD3);
+
+%生成零矩阵用来存储数据
+watermark1=zeros(p,q);
+watermark2=zeros(p,q);
+watermark3=zeros(p,q);
+watermark4=zeros(p,q);
+watermark5=zeros(p,q);
+watermark6=zeros(p,q);
+ICA1=zeros(p,q);
+
+%第二级上，对应的点相减，得到之前水印高频部分的上半部分
+for i=1:round(p/2)
+    for j=1:q
+        watermark1(i,j)=(double(CCD2(r1(i),r2(j))))-double(CD2(r1(i),r2(j)))/b;
+        watermark2(i,j)=(double(CCV2(r1(i),r2(j))))-double(CV2(r1(i),r2(j)))/b;
+        watermark3(i,j)=(double(CCH2(r1(i),r2(j))))-double(CH2(r1(i),r2(j)))/b;
+    end
+end
+
+%第三级上，对应的点相减，得到之前水印高频部分的下半部分
+for i=round(p/2)+1:q
+    for j=1:q
+        watermark4(i,j)=(double(CCD3(r3(i),r4(j))))-double(CD3(r3(i),r4(j)))/b;
+        watermark5(i,j)=(double(CCV3(r3(i),r4(j))))-double(CV3(r3(i),r4(j)))/b;
+        watermark6(i,j)=(double(CCH3(r3(i),r4(j))))-double(CH3(r3(i),r4(j)))/b;
+    end
+end
+%上下半部分合成整个高频部分
+ICD1=watermark1+watermark4;
+ICV1=watermark2+watermark5;
+ICH1=watermark3+watermark6;
+%第三级上，对应的点相减，得到之前水印的低频部分
+for i=1:p
+    for j=1:q
+        ICA1(i,j)=(double(CCA3(i,j))-double(CA3(i,j)))/a;
+    end
+end
+%小波逆变换得到提取水印
+I_out=idwt2(ICA1,ICH1,ICV1,ICD1,'haar');
